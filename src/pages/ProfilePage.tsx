@@ -125,7 +125,7 @@ const ProfilePage: React.FC = () => {
                 </div>
                 <div className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-2 mt-1">
                   <Calendar size={14} />
-                  Joined {formatDate(user.created_at)}
+                  Joined {formatDate(user.createdAt)}
                 </div>
               </div>
             </div>

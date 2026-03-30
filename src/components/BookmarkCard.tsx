@@ -146,7 +146,7 @@ const BookmarkCard: React.FC<BookmarkCardProps> = ({
               )}
             </div>
             <span className="text-xs text-gray-500 dark:text-gray-500">
-              {formatDate(bookmark.created_at)}
+              {formatDate(bookmark.createdAt)}
             </span>
           </div>
         </div>

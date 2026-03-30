@@ -1,11 +1,11 @@
 // User Types
 export interface User {
-  id: number;
+  id: string;
   username: string;
   email: string;
   full_name: string | null;
   avatar_url: string | null;
-  created_at: string;
+  createdAt: string;
   last_login?: string;
   total_bookmarks?: number;
   public_bookmarks?: number;
@@ -33,25 +33,25 @@ export interface AuthResponse {
 
 // Bookmark Types
 export interface Bookmark {
-  id: number;
-  user_id: number;
+  id: string;
+  user_id: string;
   title: string;
   url: string;
   description: string | null;
   favicon: string | null;
   folder: string;
   is_public: boolean;
-  created_at: string;
-  updated_at: string;
+  createdAt: string;
+  updatedAt: string;
   tags: Tag[];
   user?: User;
 }
 
 export interface Tag {
-  id: number;
-  user_id: number;
+  id: string;
+  user_id: string;
   name: string;
-  created_at: string;
+  createdAt: string;
   usage_count?: number;
 }
 
