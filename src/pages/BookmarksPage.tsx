@@ -92,16 +92,18 @@ const BookmarksPage: React.FC = () => {
     }
   };
 
-  const handleTogglePrivacy = async (id: number) => {
+  const handleTogglePrivacy = async (id: string) => {
     try {
-      await bookmarkAPI.togglePrivacy(id);
+      const bm = bookmarks.find((b) => b.id === id);
+      if (!bm) return;
+      await bookmarkAPI.update(id, { is_public: !bm.is_public });
       await fetchBookmarks();
     } catch (err) {
       console.error('Error toggling privacy:', err);
     }
   };
 
-  const handleDeleteBookmark = async (id: number) => {
+  const handleDeleteBookmark = async (id: string) => {
     if (!confirm('Are you sure you want to delete this bookmark?')) return;
     
     try {

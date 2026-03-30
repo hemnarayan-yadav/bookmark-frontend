@@ -6,8 +6,8 @@ import { formatDate, extractDomain, truncateText } from '../utils/helpers';
 interface BookmarkCardProps {
   bookmark: Bookmark;
   onEdit: (bookmark: Bookmark) => void;
-  onDelete: (id: number) => void;
-  onTogglePrivacy?: (id: number) => void;
+  onDelete: (id: string) => void;
+  onTogglePrivacy?: (id: string) => void;
   showActions?: boolean;
 }
 

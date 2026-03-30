@@ -85,7 +85,7 @@ export const bookmarkAPI = {
     return response.data;
   },
 
-  getById: async (id: number) => {
+  getById: async (id: string) => {
     const response = await api.get<ApiResponse<Bookmark>>(`/bookmarks/${id}`);
     return response.data;
   },
@@ -95,24 +95,21 @@ export const bookmarkAPI = {
     return response.data;
   },
 
-  update: async (id: number, data: UpdateBookmarkDTO) => {
+  update: async (id: string, data: UpdateBookmarkDTO) => {
     const response = await api.put<ApiResponse<Bookmark>>(`/bookmarks/${id}`, data);
     return response.data;
   },
 
-  togglePrivacy: async (id: number) => {
-    const response = await api.patch<ApiResponse<{ is_public: boolean }>>(`/bookmarks/${id}/privacy`);
-    return response.data;
-  },
-
-  delete: async (id: number) => {
+  delete: async (id: string) => {
     const response = await api.delete<ApiResponse<void>>(`/bookmarks/${id}`);
     return response.data;
   },
 
   getFolders: async () => {
-    const response = await api.get<ApiResponse<Folder[]>>('/bookmarks/folders');
-    return response.data;
+    const response = await api.get<ApiResponse<string[]>>('/bookmarks/folders');
+    // Backend returns string[], convert to Folder[] shape
+    const folders = (response.data.data ?? []).map((f) => ({ folder: f, count: 0 }));
+    return { success: response.data.success, data: folders };
   },
 };
 
@@ -128,7 +125,7 @@ export const tagAPI = {
     return response.data;
   },
 
-  delete: async (id: number) => {
+  delete: async (id: string) => {
     const response = await api.delete<ApiResponse<void>>(`/tags/${id}`);
     return response.data;
   },

@@ -6,7 +6,7 @@ import { useAuth } from '../context/AuthContext';
 
 interface SidebarProps {
   folders: Array<{ folder: string; count: number }>;
-  tags: Array<{ id: number; name: string; usage_count?: number }>;
+  tags: Array<{ id: string; name: string; usage_count?: number }>;
   selectedFolder: string | null;
   selectedTag: string | null;
   onFolderSelect: (folder: string | null) => void;
