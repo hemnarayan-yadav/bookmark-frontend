@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Folder, Tag, Moon, Sun, Menu, X, User, LogOut, Settings } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Folder, Tag, Moon, Sun, Menu, X, User, LogOut, Settings, Heart, FolderOpen, BarChart3, Globe, Bookmark as BookmarkIcon } from 'lucide-react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 
@@ -28,12 +28,21 @@ const Sidebar: React.FC<SidebarProps> = ({
   const { theme, toggleTheme } = useTheme();
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [showUserMenu, setShowUserMenu] = useState(false);
 
   const handleLogout = () => {
     logout();
     navigate('/login');
   };
+
+  const navItems = [
+    { path: '/bookmarks', label: 'My Bookmarks', icon: BookmarkIcon },
+    { path: '/collections', label: 'Collections', icon: FolderOpen },
+    { path: '/favorites', label: 'Favorites', icon: Heart },
+    { path: '/dashboard', label: 'Dashboard', icon: BarChart3 },
+    { path: '/public', label: 'Explore', icon: Globe },
+  ];
 
   return (
     <>
@@ -140,6 +149,27 @@ const Sidebar: React.FC<SidebarProps> = ({
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
+          {/* Navigation Links */}
+          <div>
+            <h2 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Navigation</h2>
+            <div className="space-y-1">
+              {navItems.map((item) => (
+                <button
+                  key={item.path}
+                  onClick={() => { navigate(item.path); onClose(); }}
+                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
+                    location.pathname === item.path
+                      ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 font-medium'
+                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                  }`}
+                >
+                  <item.icon size={18} />
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Folders */}
           <div>
             <div className="flex items-center gap-2 mb-3">

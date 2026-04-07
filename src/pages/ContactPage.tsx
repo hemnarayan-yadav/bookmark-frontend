@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Moon, Sun, LogIn, LogOut, Settings, Bookmark as BookmarkIcon, Mail, MessageSquare, Send } from 'lucide-react';
+import { Moon, Sun, LogIn, LogOut, Settings, Bookmark as BookmarkIcon, Mail, MessageSquare, Send, ArrowLeft } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 
@@ -22,13 +22,21 @@ const ContactPage: React.FC = () => {
         <div className="px-4 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             {/* Logo */}
-            <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate('/')}>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => navigate(-1)}
+                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              >
+                <ArrowLeft size={20} className="text-gray-600 dark:text-gray-400" />
+              </button>
+              <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate('/')}>
               <div className="w-10 h-10 bg-primary-600 rounded-xl flex items-center justify-center">
                 <BookmarkIcon size={24} className="text-white" />
               </div>
               <h1 className="text-xl font-bold text-gray-900 dark:text-white">
                 Bookmark Manager
               </h1>
+            </div>
             </div>
 
             {/* Navigation */}

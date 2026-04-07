@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Loader2, Menu, AlertCircle } from 'lucide-react';
-import { bookmarkAPI, tagAPI } from '../services/api';
-import { Bookmark, Tag, Folder, CreateBookmarkDTO, UpdateBookmarkDTO } from '../types';
+import { Plus, Loader2, Menu, AlertCircle, Trash2, FolderOpen, Tag, CheckSquare, X } from 'lucide-react';
+import { bookmarkAPI, tagAPI, favoriteAPI, collectionAPI } from '../services/api';
+import { Bookmark, Tag as TagType, Folder, CreateBookmarkDTO, UpdateBookmarkDTO, Collection } from '../types';
 import BookmarkCard from '../components/BookmarkCard';
 import BookmarkForm from '../components/BookmarkForm';
 import SearchBar from '../components/SearchBar';
@@ -11,7 +11,7 @@ import { useAuth } from '../context/AuthContext';
 const BookmarksPage: React.FC = () => {
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
   const [folders, setFolders] = useState<Folder[]>([]);
-  const [tags, setTags] = useState<Tag[]>([]);
+  const [tags, setTags] = useState<TagType[]>([]);
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -21,16 +21,29 @@ const BookmarksPage: React.FC = () => {
   const [error, setError] = useState('');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
+  // New: Favorites
+  const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
+
+  // New: Bulk selection
+  const [bulkMode, setBulkMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkAction, setBulkAction] = useState<string | null>(null);
+  const [bulkFolder, setBulkFolder] = useState('');
+  const [bulkTags, setBulkTags] = useState('');
+
+  // New: Add to collection
+  const [showCollectionPicker, setShowCollectionPicker] = useState(false);
+  const [collections, setCollections] = useState<Collection[]>([]);
+  const [addBookmarkToCol, setAddBookmarkToCol] = useState<Bookmark | null>(null);
+
   const { isAuthenticated, isLoading: isAuthLoading } = useAuth();
 
-  // ✅ Fetch folders + tags once auth is ready
   useEffect(() => {
     if (!isAuthLoading && isAuthenticated) {
       fetchData();
     }
   }, [isAuthLoading, isAuthenticated]);
 
-  // ✅ Fetch bookmarks whenever filters or auth state changes
   useEffect(() => {
     if (!isAuthLoading && isAuthenticated) {
       fetchBookmarks();
@@ -50,6 +63,16 @@ const BookmarksPage: React.FC = () => {
       }
       if (tagsRes.success && tagsRes.data) {
         setTags(tagsRes.data);
+      }
+
+      // Fetch favorite IDs separately so it doesn't block page load
+      try {
+        const favRes = await favoriteAPI.getIds();
+        if (favRes.success && favRes.data) {
+          setFavoriteIds(new Set(favRes.data));
+        }
+      } catch {
+        // silently ignore — favorites are non-critical
       }
     } catch (err) {
       console.error('Error fetching data:', err);
@@ -115,6 +138,49 @@ const BookmarksPage: React.FC = () => {
     }
   };
 
+  const handleToggleFavorite = async (id: string) => {
+    try {
+      const response = await favoriteAPI.toggle(id);
+      if (response.success && response.data) {
+        setFavoriteIds((prev) => {
+          const next = new Set(prev);
+          if (response.data!.favorited) {
+            next.add(id);
+          } else {
+            next.delete(id);
+          }
+          return next;
+        });
+      }
+    } catch (err) {
+      console.error('Error toggling favorite:', err);
+    }
+  };
+
+  const handleAddToCollection = async (bookmark: Bookmark) => {
+    setAddBookmarkToCol(bookmark);
+    setShowCollectionPicker(true);
+    try {
+      const response = await collectionAPI.getAll();
+      if (response.success && response.data) {
+        setCollections(response.data);
+      }
+    } catch (err) {
+      console.error('Error fetching collections:', err);
+    }
+  };
+
+  const handlePickCollection = async (collectionId: string) => {
+    if (!addBookmarkToCol) return;
+    try {
+      await collectionAPI.addBookmark(collectionId, addBookmarkToCol.id);
+      setShowCollectionPicker(false);
+      setAddBookmarkToCol(null);
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Failed to add to collection');
+    }
+  };
+
   const handleOpenForm = (bookmark?: Bookmark) => {
     if (bookmark) {
       setEditingBookmark(bookmark);
@@ -127,6 +193,71 @@ const BookmarksPage: React.FC = () => {
   const handleCloseForm = () => {
     setIsFormOpen(false);
     setEditingBookmark(null);
+  };
+
+  // Bulk operations
+  const handleSelectBookmark = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const handleSelectAll = () => {
+    if (selectedIds.size === bookmarks.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(bookmarks.map((b) => b.id)));
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (!confirm(`Delete ${selectedIds.size} bookmarks?`)) return;
+    try {
+      await bookmarkAPI.bulkDelete(Array.from(selectedIds));
+      setSelectedIds(new Set());
+      setBulkMode(false);
+      await fetchData();
+      await fetchBookmarks();
+    } catch (err) {
+      console.error('Bulk delete error:', err);
+    }
+  };
+
+  const handleBulkMove = async () => {
+    if (!bulkFolder.trim()) return;
+    try {
+      await bookmarkAPI.bulkMove(Array.from(selectedIds), bulkFolder);
+      setSelectedIds(new Set());
+      setBulkMode(false);
+      setBulkAction(null);
+      setBulkFolder('');
+      await fetchData();
+      await fetchBookmarks();
+    } catch (err) {
+      console.error('Bulk move error:', err);
+    }
+  };
+
+  const handleBulkTag = async () => {
+    if (!bulkTags.trim()) return;
+    const tagList = bulkTags.split(',').map((t) => t.trim()).filter(Boolean);
+    try {
+      await bookmarkAPI.bulkTag(Array.from(selectedIds), tagList);
+      setSelectedIds(new Set());
+      setBulkMode(false);
+      setBulkAction(null);
+      setBulkTags('');
+      await fetchData();
+      await fetchBookmarks();
+    } catch (err) {
+      console.error('Bulk tag error:', err);
+    }
   };
 
   if (isLoading) {
@@ -196,6 +327,15 @@ const BookmarksPage: React.FC = () => {
                   <SearchBar onSearch={setSearchQuery} />
                 </div>
 
+                {/* Bulk Mode Toggle */}
+                <button
+                  onClick={() => { setBulkMode(!bulkMode); setSelectedIds(new Set()); }}
+                  className={`p-2 rounded-lg transition-colors ${bulkMode ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-600' : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500'}`}
+                  title="Bulk select mode"
+                >
+                  <CheckSquare size={20} />
+                </button>
+
                 {/* Add Button */}
                 <button
                   onClick={() => handleOpenForm()}
@@ -205,6 +345,37 @@ const BookmarksPage: React.FC = () => {
                   <span className="hidden sm:inline">Add Bookmark</span>
                 </button>
               </div>
+
+              {/* Bulk Action Bar */}
+              {bulkMode && selectedIds.size > 0 && (
+                <div className="mt-3 flex items-center gap-3 p-3 bg-primary-50 dark:bg-primary-900/20 rounded-lg border border-primary-200 dark:border-primary-800">
+                  <span className="text-sm font-medium text-primary-700 dark:text-primary-300">
+                    {selectedIds.size} selected
+                  </span>
+                  <button onClick={handleSelectAll} className="text-xs text-primary-600 hover:underline">
+                    {selectedIds.size === bookmarks.length ? 'Deselect all' : 'Select all'}
+                  </button>
+                  <div className="flex-1" />
+                  <button
+                    onClick={() => setBulkAction('move')}
+                    className="px-3 py-1.5 text-xs bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors flex items-center gap-1"
+                  >
+                    <FolderOpen size={14} /> Move
+                  </button>
+                  <button
+                    onClick={() => setBulkAction('tag')}
+                    className="px-3 py-1.5 text-xs bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors flex items-center gap-1"
+                  >
+                    <Tag size={14} /> Tag
+                  </button>
+                  <button
+                    onClick={handleBulkDelete}
+                    className="px-3 py-1.5 text-xs bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center gap-1"
+                  >
+                    <Trash2 size={14} /> Delete
+                  </button>
+                </div>
+              )}
             </div>
           </header>
 
@@ -240,6 +411,11 @@ const BookmarksPage: React.FC = () => {
                     onEdit={handleOpenForm}
                     onDelete={handleDeleteBookmark}
                     onTogglePrivacy={handleTogglePrivacy}
+                    onToggleFavorite={handleToggleFavorite}
+                    onAddToCollection={handleAddToCollection}
+                    isFavorited={favoriteIds.has(bookmark.id)}
+                    isSelected={selectedIds.has(bookmark.id)}
+                    onSelect={bulkMode ? handleSelectBookmark : undefined}
                   />
                 ))}
               </div>
@@ -257,6 +433,88 @@ const BookmarksPage: React.FC = () => {
           onSubmit={editingBookmark ? handleUpdateBookmark : handleCreateBookmark}
           onClose={handleCloseForm}
         />
+      )}
+
+      {/* Bulk Move Modal */}
+      {bulkAction === 'move' && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-sm w-full p-6">
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Move to Folder</h3>
+            <input
+              type="text"
+              value={bulkFolder}
+              onChange={(e) => setBulkFolder(e.target.value)}
+              placeholder="Folder name"
+              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white mb-4"
+              list="bulk-folders"
+            />
+            <datalist id="bulk-folders">
+              {folders.map((f) => <option key={f.folder} value={f.folder} />)}
+            </datalist>
+            <div className="flex gap-3">
+              <button onClick={() => { setBulkAction(null); setBulkFolder(''); }} className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg">Cancel</button>
+              <button onClick={handleBulkMove} className="flex-1 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg">Move</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Tag Modal */}
+      {bulkAction === 'tag' && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-sm w-full p-6">
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Add Tags</h3>
+            <input
+              type="text"
+              value={bulkTags}
+              onChange={(e) => setBulkTags(e.target.value)}
+              placeholder="Comma separated tags"
+              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white mb-4"
+            />
+            <div className="flex gap-3">
+              <button onClick={() => { setBulkAction(null); setBulkTags(''); }} className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg">Cancel</button>
+              <button onClick={handleBulkTag} className="flex-1 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg">Add Tags</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Collection Picker Modal */}
+      {showCollectionPicker && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-sm w-full">
+            <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white">Add to Collection</h3>
+              <button onClick={() => { setShowCollectionPicker(false); setAddBookmarkToCol(null); }} className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded">
+                <X size={20} className="text-gray-500" />
+              </button>
+            </div>
+            <div className="p-4 space-y-2 max-h-80 overflow-y-auto">
+              {collections.length === 0 ? (
+                <p className="text-center text-gray-500 py-4">No collections yet. Create one first!</p>
+              ) : (
+                collections.map((col) => (
+                  <button
+                    key={col.id}
+                    onClick={() => handlePickCollection(col.id)}
+                    className="w-full text-left p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center gap-3 border border-gray-100 dark:border-gray-700"
+                  >
+                    <div
+                      className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-sm font-bold flex-shrink-0"
+                      style={{ backgroundColor: col.color }}
+                    >
+                      {col.name.charAt(0)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-gray-900 dark:text-white text-sm">{col.name}</div>
+                      <div className="text-xs text-gray-500">{col.bookmark_count} bookmarks</div>
+                    </div>
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -1,5 +1,5 @@
 import React from 'react';
-import { ExternalLink, Edit2, Trash2, Tag, Globe, Lock } from 'lucide-react';
+import { ExternalLink, Edit2, Trash2, Tag, Globe, Lock, Heart, FolderPlus } from 'lucide-react';
 import { Bookmark } from '../types';
 import { formatDate, extractDomain, truncateText } from '../utils/helpers';
 
@@ -8,6 +8,11 @@ interface BookmarkCardProps {
   onEdit: (bookmark: Bookmark) => void;
   onDelete: (id: string) => void;
   onTogglePrivacy?: (id: string) => void;
+  onToggleFavorite?: (id: string) => void;
+  onAddToCollection?: (bookmark: Bookmark) => void;
+  isFavorited?: boolean;
+  isSelected?: boolean;
+  onSelect?: (id: string) => void;
   showActions?: boolean;
 }
 
@@ -16,6 +21,11 @@ const BookmarkCard: React.FC<BookmarkCardProps> = ({
   onEdit,
   onDelete,
   onTogglePrivacy,
+  onToggleFavorite,
+  onAddToCollection,
+  isFavorited = false,
+  isSelected = false,
+  onSelect,
   showActions = true
 }) => {
   const handleFaviconError = (e: React.SyntheticEvent<HTMLImageElement>) => {
@@ -23,8 +33,20 @@ const BookmarkCard: React.FC<BookmarkCardProps> = ({
   };
 
   return (
-    <div className="bookmark-card bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:shadow-md transition-all duration-300 p-4 border border-gray-200 dark:border-gray-700 animate-fade-in">
+    <div className={`bookmark-card bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:shadow-md transition-all duration-300 p-4 border ${isSelected ? 'border-primary-500 ring-2 ring-primary-200 dark:ring-primary-800' : 'border-gray-200 dark:border-gray-700'} animate-fade-in`}>
       <div className="flex items-start gap-3">
+        {/* Selection checkbox */}
+        {onSelect && (
+          <div className="flex-shrink-0 mt-1">
+            <input
+              type="checkbox"
+              checked={isSelected}
+              onChange={() => onSelect(bookmark.id)}
+              className="w-4 h-4 text-primary-600 rounded border-gray-300 focus:ring-primary-500"
+            />
+          </div>
+        )}
+
         {/* Favicon */}
         <div className="flex-shrink-0 mt-1">
           <img
@@ -68,6 +90,24 @@ const BookmarkCard: React.FC<BookmarkCardProps> = ({
             </div>
             {showActions && (
               <div className="flex items-center gap-1 flex-shrink-0">
+                {onToggleFavorite && (
+                  <button
+                    onClick={() => onToggleFavorite(bookmark.id)}
+                    className={`p-1.5 rounded transition-colors ${isFavorited ? 'text-red-500 hover:text-red-600' : 'text-gray-400 hover:text-red-500'}`}
+                    title={isFavorited ? 'Unfavorite' : 'Favorite'}
+                  >
+                    <Heart size={16} fill={isFavorited ? 'currentColor' : 'none'} />
+                  </button>
+                )}
+                {onAddToCollection && (
+                  <button
+                    onClick={() => onAddToCollection(bookmark)}
+                    className="p-1.5 text-gray-500 hover:text-purple-600 dark:text-gray-400 dark:hover:text-purple-400 rounded transition-colors"
+                    title="Add to collection"
+                  >
+                    <FolderPlus size={16} />
+                  </button>
+                )}
                 <button
                   onClick={() => window.open(bookmark.url, '_blank')}
                   className="p-1.5 text-gray-500 hover:text-primary-600 dark:text-gray-400 dark:hover:text-primary-400 rounded transition-colors"

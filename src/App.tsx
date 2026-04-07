@@ -11,6 +11,10 @@ import PublicBookmarksPage from './pages/PublicBookmarksPage';
 import ProfilePage from './pages/ProfilePage';
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
 import ContactPage from './pages/ContactPage';
+import CollectionsPage from './pages/CollectionsPage';
+import DashboardPage from './pages/DashboardPage';
+import FavoritesPage from './pages/FavoritesPage';
+import SharedCollectionPage from './pages/SharedCollectionPage';
 
 function App() {
   return (
@@ -25,6 +29,7 @@ function App() {
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
             <Route path="/contact" element={<ContactPage />} />
+            <Route path="/shared/:token" element={<SharedCollectionPage />} />
 
             {/* Protected Routes */}
             <Route
@@ -32,6 +37,30 @@ function App() {
               element={
                 <ProtectedRoute>
                   <BookmarksPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/collections"
+              element={
+                <ProtectedRoute>
+                  <CollectionsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/favorites"
+              element={
+                <ProtectedRoute>
+                  <FavoritesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard"
+              element={
+                <ProtectedRoute>
+                  <DashboardPage />
                 </ProtectedRoute>
               }
             />

@@ -1,5 +1,10 @@
 import axios from 'axios';
-import { Bookmark, Tag, Folder, CreateBookmarkDTO, UpdateBookmarkDTO, ApiResponse, RegisterDTO, LoginDTO, AuthResponse, User } from '../types';
+import {
+  Bookmark, Tag, Folder, CreateBookmarkDTO, UpdateBookmarkDTO,
+  ApiResponse, RegisterDTO, LoginDTO, AuthResponse, User,
+  Collection, CreateCollectionDTO, UpdateCollectionDTO,
+  DashboardStats, PlatformStats, ImportResult,
+} from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
@@ -25,7 +30,6 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401 || error.response?.status === 403) {
       console.warn('Unauthorized response detected:', error.response?.config?.url);
-      // ⚠️ Do NOT clear tokens here — let AuthContext handle it gracefully.
     }
     return Promise.reject(error);
   }
@@ -107,9 +111,39 @@ export const bookmarkAPI = {
 
   getFolders: async () => {
     const response = await api.get<ApiResponse<string[]>>('/bookmarks/folders');
-    // Backend returns string[], convert to Folder[] shape
     const folders = (response.data.data ?? []).map((f) => ({ folder: f, count: 0 }));
     return { success: response.data.success, data: folders };
+  },
+
+  // Import/Export
+  importBookmarks: async (bookmarks: any[]) => {
+    const response = await api.post<ApiResponse<ImportResult>>('/bookmarks/import', { bookmarks });
+    return response.data;
+  },
+
+  exportBookmarks: async (format: 'json' | 'html' = 'json') => {
+    if (format === 'html') {
+      const response = await api.get('/bookmarks/export?format=html', { responseType: 'blob' });
+      return response.data;
+    }
+    const response = await api.get<ApiResponse<any[]>>('/bookmarks/export?format=json');
+    return response.data;
+  },
+
+  // Bulk operations
+  bulkDelete: async (ids: string[]) => {
+    const response = await api.post<ApiResponse<{ deleted: number }>>('/bookmarks/bulk-delete', { ids });
+    return response.data;
+  },
+
+  bulkMove: async (ids: string[], folder: string) => {
+    const response = await api.put<ApiResponse<{ updated: number }>>('/bookmarks/bulk-move', { ids, folder });
+    return response.data;
+  },
+
+  bulkTag: async (ids: string[], tags: string[]) => {
+    const response = await api.put<ApiResponse<{ updated: number }>>('/bookmarks/bulk-tag', { ids, tags });
+    return response.data;
   },
 };
 
@@ -127,6 +161,100 @@ export const tagAPI = {
 
   delete: async (id: string) => {
     const response = await api.delete<ApiResponse<void>>(`/tags/${id}`);
+    return response.data;
+  },
+};
+
+// Collections API
+export const collectionAPI = {
+  getAll: async () => {
+    const response = await api.get<ApiResponse<Collection[]>>('/collections');
+    return response.data;
+  },
+
+  getById: async (id: string) => {
+    const response = await api.get<ApiResponse<Collection>>(`/collections/${id}`);
+    return response.data;
+  },
+
+  create: async (data: CreateCollectionDTO) => {
+    const response = await api.post<ApiResponse<Collection>>('/collections', data);
+    return response.data;
+  },
+
+  update: async (id: string, data: UpdateCollectionDTO) => {
+    const response = await api.put<ApiResponse<Collection>>(`/collections/${id}`, data);
+    return response.data;
+  },
+
+  delete: async (id: string) => {
+    const response = await api.delete<ApiResponse<void>>(`/collections/${id}`);
+    return response.data;
+  },
+
+  addBookmark: async (collectionId: string, bookmarkId: string) => {
+    const response = await api.post<ApiResponse<void>>(`/collections/${collectionId}/bookmarks`, { bookmark_id: bookmarkId });
+    return response.data;
+  },
+
+  removeBookmark: async (collectionId: string, bookmarkId: string) => {
+    const response = await api.delete<ApiResponse<void>>(`/collections/${collectionId}/bookmarks/${bookmarkId}`);
+    return response.data;
+  },
+
+  generateShareLink: async (id: string) => {
+    const response = await api.post<ApiResponse<{ share_token: string }>>(`/collections/${id}/share`);
+    return response.data;
+  },
+
+  getShared: async (token: string) => {
+    const response = await api.get<ApiResponse<Collection>>(`/collections/shared/${token}`);
+    return response.data;
+  },
+
+  addCollaborator: async (id: string, username: string, role: 'viewer' | 'editor' = 'viewer') => {
+    const response = await api.post<ApiResponse<void>>(`/collections/${id}/collaborators`, { username, role });
+    return response.data;
+  },
+
+  removeCollaborator: async (id: string, userId: string) => {
+    const response = await api.delete<ApiResponse<void>>(`/collections/${id}/collaborators/${userId}`);
+    return response.data;
+  },
+};
+
+// Favorites API
+export const favoriteAPI = {
+  getAll: async () => {
+    const response = await api.get<ApiResponse<Bookmark[]>>('/favorites');
+    return response.data;
+  },
+
+  getIds: async () => {
+    const response = await api.get<ApiResponse<string[]>>('/favorites/ids');
+    return response.data;
+  },
+
+  toggle: async (bookmarkId: string) => {
+    const response = await api.post<ApiResponse<{ favorited: boolean }>>(`/favorites/${bookmarkId}`);
+    return response.data;
+  },
+
+  check: async (bookmarkId: string) => {
+    const response = await api.get<ApiResponse<{ favorited: boolean }>>(`/favorites/check/${bookmarkId}`);
+    return response.data;
+  },
+};
+
+// Stats API
+export const statsAPI = {
+  getDashboard: async () => {
+    const response = await api.get<ApiResponse<DashboardStats>>('/stats/dashboard');
+    return response.data;
+  },
+
+  getPlatform: async () => {
+    const response = await api.get<ApiResponse<PlatformStats>>('/stats/public');
     return response.data;
   },
 };
